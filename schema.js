@@ -2,6 +2,13 @@
 import z from 'zod';
 
 
+// Schema generated from types.ts Owner type
+const OwnerSchema = z.object({
+    name: z.string(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+}).strict(); // Add strict mode to reject extra properties
+
 // Schema generated from types.ts Product type
 export const ProductSchema = z.object({
   id: z.number().optional(),
@@ -9,10 +16,7 @@ export const ProductSchema = z.object({
   updatedAt: z.string().optional(),
   title: z.string({ required_error: "Title is required" }),
   category: z.string({ required_error: "Category is required" }),
-  price: z.number(),
-  description: z.string().optional(),
-  imageUrl: z.string().optional(),
-  stock: z.number(),
+  owners: z.tuple([OwnerSchema]),
 }).strict(); // Add strict mode to reject extra properties
 
 // Schema generated from types.ts Course type

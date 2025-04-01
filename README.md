@@ -41,13 +41,7 @@ export type Product = {
 
 ## 🚀 Avvio del Server
 
-Per avviare il server in modalità di sviluppo:
-
-```bash
-npm run dev
-```
-
-Per avviare il server in modalità produzione:
+Per avviare il server:
 
 ```bash
 npm run start
