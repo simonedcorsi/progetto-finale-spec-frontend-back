@@ -290,14 +290,21 @@ function generateZodTypeForNode(typeNode, sourceFile, propName, allTypes) {
       
       // Generate type for the rest element
       const restElement = typeNode.elements[restIndex];
-      const restType = ts.isRestTypeNode(restElement) 
-        ? generateZodTypeForNode(restElement.type, sourceFile, propName, allTypes)
-        : generateZodTypeForNode(restElement, sourceFile, propName, allTypes);
+      let restElementType;
       
-      // If it's an array type in the rest, extract the element type
-      let restElementType = restType;
-      if (restType.startsWith('z.array(')) {
-        restElementType = restType.substring(8, restType.length - 1);
+      if (ts.isRestTypeNode(restElement) && ts.isArrayTypeNode(restElement.type)) {
+        // If the rest element is an array type, get the element type directly
+        restElementType = generateZodTypeForNode(restElement.type.elementType, sourceFile, propName, allTypes);
+      } else if (ts.isRestTypeNode(restElement)) {
+        // Other types in the rest element
+        restElementType = generateZodTypeForNode(restElement.type, sourceFile, propName, allTypes);
+        // If it's an array wrapped, extract the element type
+        if (restElementType.startsWith('z.array(')) {
+          restElementType = restElementType.substring(8, restElementType.length - 1);
+        }
+      } else {
+        // Not a rest element, just use it directly
+        restElementType = generateZodTypeForNode(restElement, sourceFile, propName, allTypes);
       }
       
       // Create a tuple with rest
@@ -317,6 +324,28 @@ function generateZodTypeForNode(typeNode, sourceFile, propName, allTypes) {
     
     // Check if this is a reference to a custom type we've already defined
     if (allTypes.has(typeName)) {
+      const referencedType = allTypes.get(typeName);
+      
+      // Check if the referenced type is a union of string literals (like our Platform, GameMode, etc.)
+      if (referencedType.type && ts.isUnionTypeNode(referencedType.type)) {
+        const allStringLiterals = referencedType.type.types.every(t => 
+          ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal)
+        );
+        
+        if (allStringLiterals) {
+          // Extract string values for enum
+          const enumValues = referencedType.type.types.map(t => 
+            ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal) ? t.literal.text : ''
+          );
+          
+          // Return enum directly for better validation of string literals
+          return `z.enum([${enumValues.map(v => `"${v}"`).join(', ')}], {
+            errorMap: () => ({ message: "Invalid value for '${propName}'. Expected one of the allowed values for ${typeName}." })
+          })`;
+        }
+      }
+      
+      // Otherwise, use the schema we generated for this type
       return `${typeName}Schema`;
     }
     
